@@ -4,6 +4,9 @@ import random
 import sys
 import argumentsParser
 
+MIN_BUBBLE_RADIUS = 20
+MAX_BUBBLE_RADIUS = 40
+
 
 class Color:
     def __init__(self, r=None, g=None, b=None):
@@ -19,10 +22,10 @@ class Point:
 
 
 class Bubble:
-    def __init__(self, color, point, size):
+    def __init__(self, color, point, radius):
         self.color = color
         self.point = point
-        self.size = size
+        self.radius = radius
 
 
 class App:
@@ -44,9 +47,7 @@ class App:
                 # try to show initial img with filled circles
                 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                 flow = cv2.calcOpticalFlowFarneback(prevgray, gray, 0.5, 3, 15, 3, 5, 1.2, 0)
-                ###
                 self.draw_bubbles(prev, bubbles)
-                ###
                 prevgray = gray
                 cv2.imshow('flow', self.draw_flow(gray, flow))
                 ch = cv2.waitKey(5)
@@ -61,15 +62,15 @@ class App:
         cv2.imshow('bubbles', img)
 
     @staticmethod
-    def generate_random_bubbles(size):
-        h, w = size[:2]
+    def generate_random_bubbles(radius):
+        h, w = radius[:2]
         n = 20
         bubbles = []
         for i in range(0, n - 1):
             color = Color(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-            size = random.randint(10, 20)
-            point = Point(x=random.randint(size, w - size), y=random.randint(size, h - size))
-            bubbles.append(Bubble(color, point, size))
+            radius = random.randint(MIN_BUBBLE_RADIUS, MAX_BUBBLE_RADIUS)
+            point = Point(x=random.randint(radius, w - radius), y=random.randint(radius, h - radius))
+            bubbles.append(Bubble(color, point, radius))
         return bubbles
 
     @staticmethod
@@ -84,6 +85,9 @@ class App:
         for (x1, y1), (x2, y2) in lines:
             cv2.circle(vis, (x1, y1), 1, (0, 255, 0), -1)
         return vis
+
+
+
 
 
 app = App()

@@ -27,7 +27,7 @@ class Bubble:
 
 class App:
     def run(self, options):
-        cam = cv2.VideoCapture("./Clips/Test.avi")
+        cam = cv2.VideoCapture(options["file"])
 
         ret, prev = cam.read()
         if not ret:
@@ -52,6 +52,7 @@ class App:
                 ch = cv2.waitKey(5)
                 if ch == 27:
                     break
+        cv2.destroyAllWindows()
 
     @staticmethod
     def draw_bubbles(img, bubbles):
@@ -85,10 +86,6 @@ class App:
         return vis
 
 
-    # filePath = options["filePath"] if options["fromFile"] else 0
-
-
-cv2.destroyAllWindows()
-
 app = App()
+
 app.run(argumentsParser.parsearguments(sys.argv[1:]))

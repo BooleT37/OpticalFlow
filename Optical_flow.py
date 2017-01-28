@@ -9,25 +9,35 @@ MAX_BUBBLE_RADIUS = 40
 
 
 class Color:
-    def __init__(self, r=None, g=None, b=None):
+    def __init__(self, r, g, b):
         self.r = r
         self.g = g
         self.b = b
 
 
 class Point:
-    def __init__(self, x=None, y=None):
+    def __init__(self, x, y):
         self.x = x
         self.y = y
 
 
 class Bubble:
-    def __init__(self, color, point, radius):
+    def __init__(self, color, center, radius):
         self.color = color
-        self.point = point
+        self.center = center
         self.radius = radius
 
 
+class ShiftedArray:
+    def __init__(self, array, shift):
+        self.array = array
+        self.shift = shift
+
+    def __getitem__(self, indexes):
+        return self.array[indexes[0] + self.shift[0], indexes[1] + self.shift[1]]
+
+
+# noinspection SpellCheckingInspection,PyPep8Naming
 class App:
     def run(self, options):
         cam = cv2.VideoCapture(options["file"])
@@ -36,8 +46,16 @@ class App:
         if not ret:
             return
 
-        bubbles = self.generate_random_bubbles(prev.shape)
-        self.draw_bubbles(prev, bubbles)
+        def shiftBubble(bubble, flow):
+            vector = self.getVectorForBubble(bubble, flow)
+            newCenter = Point(bubble.center.x + vector[0], bubble.center.y + vector[1])
+            if newCenter.x < flow.shape[1] and newCenter.y < flow.shape[0]:
+                return Bubble(bubble.color, Point(bubble.center.x + vector[0], bubble.center.x + vector[1]), bubble.radius)
+            else:
+                return None
+
+        bubbles = self.generateRandomBubbles(prev.shape)
+        self.drawBubbles(prev, bubbles)
         prevgray = cv2.cvtColor(prev, cv2.COLOR_BGR2GRAY)
 
         ret = True
@@ -47,34 +65,36 @@ class App:
                 # try to show initial img with filled circles
                 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                 flow = cv2.calcOpticalFlowFarneback(prevgray, gray, 0.5, 3, 15, 3, 5, 1.2, 0)
-                self.draw_bubbles(prev, bubbles)
+                bubbles = list(map(lambda b: shiftBubble(b, flow), bubbles))
+                self.drawBubbles(prev, bubbles)
                 prevgray = gray
-                cv2.imshow('flow', self.draw_flow(gray, flow))
+                cv2.imshow('flow', self.drawFlow(gray, flow))
                 ch = cv2.waitKey(5)
                 if ch == 27:
                     break
         cv2.destroyAllWindows()
 
     @staticmethod
-    def draw_bubbles(img, bubbles):
+    def drawBubbles(img, bubbles):
         for bubble in bubbles:
-            cv2.circle(img, (bubble.point.x, bubble.point.y), bubble.size, (bubble.color.r, bubble.color.g, bubble.color.b), -1)
+            if bubble is not None:
+                cv2.circle(img, (bubble.center.x, bubble.center.y), bubble.radius, (bubble.color.r, bubble.color.g, bubble.color.b), -1)
         cv2.imshow('bubbles', img)
 
     @staticmethod
-    def generate_random_bubbles(radius):
+    def generateRandomBubbles(radius):
         h, w = radius[:2]
         n = 20
         bubbles = []
         for i in range(0, n - 1):
             color = Color(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
             radius = random.randint(MIN_BUBBLE_RADIUS, MAX_BUBBLE_RADIUS)
-            point = Point(x=random.randint(radius, w - radius), y=random.randint(radius, h - radius))
-            bubbles.append(Bubble(color, point, radius))
+            center = Point(x=random.randint(radius, w - radius), y=random.randint(radius, h - radius))
+            bubbles.append(Bubble(color, center, radius))
         return bubbles
 
     @staticmethod
-    def draw_flow(img, flow, step=16):
+    def drawFlow(img, flow, step=16):
         h, w = img.shape[:2]
         y, x = np.mgrid[step / 2:h:step, step / 2:w:step].reshape(2, -1).astype(int)
         fx, fy = flow[y, x].T
@@ -86,8 +106,27 @@ class App:
             cv2.circle(vis, (x1, y1), 1, (0, 255, 0), -1)
         return vis
 
+    @staticmethod
+    def getVectorForBubble(bubble, flow):
+        step = 10
+        flow = ShiftedArray(flow, (bubble.center.x, bubble.center.y))
 
+        def addVector(vector1, vector2):
+            return vector1[0] + vector2[0], vector1[1] + vector2[1]
 
+        def processRow(x, y, radiusSquare, vector):
+            while x < 0:
+                vector = addVector(vector, flow[y, x])
+                vector = addVector(vector, flow[y, -x])
+                vector = addVector(vector, flow[-y, x])
+                vector = addVector(vector, flow[-y, -x])
+                x += step
+                nextY = y + step
+                if x ** 2 + nextY ** 2 <= radiusSquare:
+                    vector = processRow(x, nextY, radiusSquare, vector)
+            return vector
+
+        return processRow(-bubble.radius, 0, bubble.radius ** 2, (0, 0))
 
 
 app = App()

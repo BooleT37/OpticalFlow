@@ -51,7 +51,8 @@ class App:
         def shiftBubble(bubble, flow):
             vector = self.getVectorForBubble(bubble, flow)
             newCenter = Point(bubble.center.x + vector[0], bubble.center.y + vector[1])
-            if newCenter.x < flow.shape[1] and newCenter.y < flow.shape[0]:
+            if (newCenter.x < flow.shape[1] - bubble.radius) and (newCenter.y < flow.shape[0] - bubble.radius) and (newCenter.x > bubble.radius) and (newCenter.y > bubble.radius):
+                # todo add radius and two more borders
                 return Bubble(bubble.color, Point(bubble.center.x + vector[0], bubble.center.x + vector[1]), bubble.radius)
             else:
                 return None

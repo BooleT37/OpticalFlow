@@ -5,9 +5,10 @@ import sys
 import argumentsParser
 import math
 
-MIN_BUBBLE_RADIUS = 20
-MAX_BUBBLE_RADIUS = 40
-BUBBLE_DENSITY = 0.1
+MIN_BUBBLE_RADIUS = 30
+MAX_BUBBLE_RADIUS = 50
+BUBBLE_DENSITY = 0.005
+BUBBLES_COUNT = 10
 
 
 class Color:
@@ -66,6 +67,9 @@ class App:
             return
 
         def shiftBubble(bubble, flow):
+            bounceSlowdown = 4
+            extraSlowdown = 2
+
             vector = self.getVectorForBubble(bubble, flow)
 
             acc = vector[0] / bubble.mass, vector[1] / bubble.mass
@@ -82,16 +86,31 @@ class App:
             # Bounces
             if width <= newCenter.x + bubble.radius:  # right border
                 newCenter = Point(width * 2 - newCenter.x - bubble.radius * 2 - 1, newCenter.y)
-                newSpeed = (-newSpeed[0], newSpeed[1])
-            elif height <= newCenter.y + bubble.radius:  # bottom border
-                newCenter = Point(newCenter.x, height * 2 - newCenter.y - bubble.radius * 2 - 1)
-                newSpeed = (newSpeed[0], -newSpeed[1])
+                newSpeed = (-(newSpeed[0] / bounceSlowdown), newSpeed[1] / bounceSlowdown)
+                if newCenter.x <= bubble.radius:
+                    newCenter.x = bubble.radius + 1
+                    newSpeed = (-(newSpeed[0] / extraSlowdown), newSpeed[1])
+
             elif newCenter.x <= bubble.radius:  # left border
                 newCenter = Point(bubble.radius * 2 - newCenter.x, newCenter.y)
-                newSpeed = (-newSpeed[0], newSpeed[1])
+                newSpeed = (-(newSpeed[0] / bounceSlowdown), newSpeed[1] / bounceSlowdown)
+                if width <= newCenter.x + bubble.radius:
+                    newCenter.x = width - 1
+                    newSpeed = (-(newSpeed[0] / extraSlowdown), newSpeed[1])
+
+            if height <= newCenter.y + bubble.radius:  # bottom border
+                newCenter = Point(newCenter.x, height * 2 - newCenter.y - bubble.radius * 2 - 1)
+                newSpeed = (newSpeed[0] / bounceSlowdown, -(newSpeed[1] / bounceSlowdown))
+                if newCenter.y <= bubble.radius:
+                    newCenter.y = bubble.radius + 1
+                    newSpeed = (newSpeed[0], -(newSpeed[1] / extraSlowdown))
+
             elif newCenter.y <= bubble.radius:  # top border
                 newCenter = Point(newCenter.x, bubble.radius * 2 - newCenter.y)
-                newSpeed = (newSpeed[0], -newSpeed[1])
+                newSpeed = (newSpeed[0] / bounceSlowdown, -(newSpeed[1] / bounceSlowdown))
+                if height <= newCenter.y + bubble.radius:
+                    newCenter.y = height - 1
+                    newSpeed = (newSpeed[0], -(newSpeed[1] / extraSlowdown))
 
             bubble.center = newCenter
             bubble.speed = newSpeed
@@ -126,9 +145,8 @@ class App:
     @staticmethod
     def generateRandomBubbles(radius):
         h, w = radius[:2]
-        n = 20
         bubbles = []
-        for i in range(0, n - 1):
+        for i in range(0, BUBBLES_COUNT):
             color = Color(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
             radius = random.randint(MIN_BUBBLE_RADIUS, MAX_BUBBLE_RADIUS)
             center = Point(x=random.randint(radius, w - radius - 1), y=random.randint(radius, h - radius - 1))

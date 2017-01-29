@@ -12,5 +12,7 @@ def parsearguments(args):
         const=DEFAULT_VIDEO_PATH, help='read from video file instead of webcam'
     )
     parsedargs = parser.parse_args(args)
+    if parsedargs.file is None:
+        parsedargs.file = 0
     options = {"file": parsedargs.file}
     return options

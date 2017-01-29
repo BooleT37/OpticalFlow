@@ -3,7 +3,9 @@
     <words>
       <w>bubblecolors</w>
       <w>parsearguments</w>
+      <w>parsedargs</w>
       <w>prevgray</w>
+      <w>webcam</w>
     </words>
   </dictionary>
 </component>

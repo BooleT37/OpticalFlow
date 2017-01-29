@@ -14,11 +14,17 @@ class Color:
         self.g = g
         self.b = b
 
+    def __str__(self):
+        return "(R: {}, G: {}, B)".format(self.r, self.g, self.b)
+
 
 class Point:
     def __init__(self, x, y):
         self.x = x
         self.y = y
+
+    def __str__(self):
+        return "(x: {}, y: {})".format(self.x, self.y)
 
 
 class Bubble:
@@ -27,6 +33,9 @@ class Bubble:
         self.center = center
         self.radius = radius
 
+    def __str__(self):
+        return "(center: {}, radius: {})".format(self.center, self.radius)
+
 
 class ShiftedArray:
     def __init__(self, array, shift):
@@ -34,6 +43,8 @@ class ShiftedArray:
         self.shift = shift
 
     def __getitem__(self, indexes):
+        if indexes[0] + self.shift[0] > self.array.shape[0] or indexes[1] + self.shift[1] > self.array.shape[1]:
+            raise Exception("Getting array element out of bounds!")
         return self.array[indexes[0] + self.shift[0], indexes[1] + self.shift[1]]
 
 
@@ -47,11 +58,17 @@ class App:
             return
 
         def shiftBubble(bubble, flow):
+            slowRatio = 10
             vector = self.getVectorForBubble(bubble, flow)
+            vector = (int(vector[0] / slowRatio), int(vector[1] / slowRatio))
             newCenter = Point(bubble.center.x + vector[0], bubble.center.y + vector[1])
-            if (newCenter.x < flow.shape[1] - bubble.radius) and (newCenter.y < flow.shape[0] - bubble.radius) and (newCenter.x > bubble.radius) and (newCenter.y > bubble.radius):
-                # todo add radius and two more borders
-                return Bubble(bubble.color, Point(bubble.center.x + vector[0], bubble.center.x + vector[1]), bubble.radius)
+            if (newCenter.x < flow.shape[1] - bubble.radius)\
+                    and (newCenter.y < flow.shape[0] - bubble.radius) \
+                    and (newCenter.x > bubble.radius) \
+                    and (newCenter.y > bubble.radius):
+                newBubble = Bubble(bubble.color, newCenter, bubble.radius)
+                # print ("{} -> {}".format(bubble.center, newBubble.center))
+                return newBubble
             else:
                 return None
 
@@ -66,8 +83,8 @@ class App:
                 # try to show initial img with filled circles
                 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                 flow = cv2.calcOpticalFlowFarneback(prevgray, gray, 0.5, 3, 15, 3, 5, 1.2, 0)
-                bubbles = list(map(lambda b: shiftBubble(b, flow), bubbles))
-                self.drawBubbles(prev, bubbles)
+                bubbles = list(filter(lambda b: b is not None, (map(lambda b: shiftBubble(b, flow), bubbles))))
+                self.drawBubbles(img, bubbles)
                 prevgray = gray
                 cv2.imshow('flow', self.drawFlow(gray, flow))
                 ch = cv2.waitKey(5)
@@ -78,8 +95,7 @@ class App:
     @staticmethod
     def drawBubbles(img, bubbles):
         for bubble in bubbles:
-            if bubble is not None:
-                cv2.circle(img, (bubble.center.x, bubble.center.y), bubble.radius, (bubble.color.r, bubble.color.g, bubble.color.b), -1)
+            cv2.circle(img, (bubble.center.x, bubble.center.y), bubble.radius, (bubble.color.r, bubble.color.g, bubble.color.b), -1)
         cv2.imshow('bubbles', img)
 
     @staticmethod
@@ -110,7 +126,7 @@ class App:
     @staticmethod
     def getVectorForBubble(bubble, flow):
         step = 10
-        flow = ShiftedArray(flow, (bubble.center.x, bubble.center.y))
+        flow = ShiftedArray(flow, (bubble.center.y, bubble.center.x))
 
         def addVector(vector1, vector2):
             return vector1[0] + vector2[0], vector1[1] + vector2[1]
@@ -125,7 +141,7 @@ class App:
                 nextY = y + step
                 if x ** 2 + nextY ** 2 <= radiusSquare:
                     vector = processRow(x, nextY, radiusSquare, vector)
-            return vector
+            return int(vector[0]), int(vector[1])
 
         return processRow(-bubble.radius, 0, bubble.radius ** 2, (0, 0))
 

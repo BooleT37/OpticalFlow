@@ -13,6 +13,6 @@ def parsearguments(args):
     )
     parsedargs = parser.parse_args(args)
     if parsedargs.file is None:
-        parsedargs.file = 0
+        parsedargs.file = -1
     options = {"file": parsedargs.file}
     return options

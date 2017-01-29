@@ -23,4 +23,5 @@ var/
 .installed.cfg
 *.egg
 
-.idea/
+/.idea/
+/Clips/

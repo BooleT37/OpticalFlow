@@ -3,9 +3,11 @@ import cv2
 import random
 import sys
 import argumentsParser
+import math
 
 MIN_BUBBLE_RADIUS = 20
 MAX_BUBBLE_RADIUS = 40
+BUBBLE_DENSITY = 0.1
 
 
 class Color:
@@ -28,24 +30,30 @@ class Point:
 
 
 class Bubble:
-    def __init__(self, color, center, radius):
+    def __init__(self, color, center, radius, speed=(0, 0)):
         self.color = color
         self.center = center
         self.radius = radius
+        self.speed = speed
+        self.mass = BUBBLE_DENSITY * math.pi * (radius ** 2)
 
     def __str__(self):
         return "(center: {}, radius: {})".format(self.center, self.radius)
 
 
+# noinspection PyPep8Naming
 class ShiftedArray:
     def __init__(self, array, shift):
         self.array = array
         self.shift = shift
 
     def __getitem__(self, indexes):
-        if indexes[0] + self.shift[0] > self.array.shape[0] or indexes[1] + self.shift[1] > self.array.shape[1]:
-            raise Exception("Getting array element out of bounds!")
-        return self.array[indexes[0] + self.shift[0], indexes[1] + self.shift[1]]
+        newIndex = (indexes[0] + self.shift[0], indexes[1] + self.shift[1])
+        if newIndex[0] >= self.array.shape[0]:
+            raise Exception("Getting array element out of bounds! {} vs {}".format(newIndex[0], self.array.shape[0]))
+        if newIndex[1] >= self.array.shape[1]:
+            raise Exception("Getting array element out of bounds! {} vs {}".format(newIndex[1], self.array.shape[1]))
+        return self.array[newIndex]
 
 
 # noinspection SpellCheckingInspection,PyPep8Naming
@@ -58,19 +66,36 @@ class App:
             return
 
         def shiftBubble(bubble, flow):
-            slowRatio = 10
             vector = self.getVectorForBubble(bubble, flow)
-            vector = (int(vector[0] / slowRatio), int(vector[1] / slowRatio))
-            newCenter = Point(bubble.center.x + vector[0], bubble.center.y + vector[1])
-            if (newCenter.x < flow.shape[1] - bubble.radius)\
-                    and (newCenter.y < flow.shape[0] - bubble.radius) \
-                    and (newCenter.x > bubble.radius) \
-                    and (newCenter.y > bubble.radius):
-                newBubble = Bubble(bubble.color, newCenter, bubble.radius)
-                # print ("{} -> {}".format(bubble.center, newBubble.center))
-                return newBubble
-            else:
-                return None
+
+            acc = vector[0] / bubble.mass, vector[1] / bubble.mass
+
+            newCenter = Point(
+                int(bubble.center.x + bubble.speed[0] + acc[0] / 2),
+                int(bubble.center.y + bubble.speed[1] + acc[1] / 2)
+            )
+            newSpeed = (bubble.speed[0] + acc[0], bubble.speed[1] + acc[1])
+
+            width = int(flow.shape[1])
+            height = int(flow.shape[0])
+
+            # Bounces
+            if width <= newCenter.x + bubble.radius:  # right border
+                newCenter = Point(width * 2 - newCenter.x - bubble.radius * 2 - 1, newCenter.y)
+                newSpeed = (-newSpeed[0], newSpeed[1])
+            elif height <= newCenter.y + bubble.radius:  # bottom border
+                newCenter = Point(newCenter.x, height * 2 - newCenter.y - bubble.radius * 2 - 1)
+                newSpeed = (newSpeed[0], -newSpeed[1])
+            elif newCenter.x <= bubble.radius:  # left border
+                newCenter = Point(bubble.radius * 2 - newCenter.x, newCenter.y)
+                newSpeed = (-newSpeed[0], newSpeed[1])
+            elif newCenter.y <= bubble.radius:  # top border
+                newCenter = Point(newCenter.x, bubble.radius * 2 - newCenter.y)
+                newSpeed = (newSpeed[0], -newSpeed[1])
+
+            bubble.center = newCenter
+            bubble.speed = newSpeed
+            return bubble
 
         bubbles = self.generateRandomBubbles(prev.shape)
         self.drawBubbles(prev, bubbles)
@@ -106,7 +131,7 @@ class App:
         for i in range(0, n - 1):
             color = Color(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
             radius = random.randint(MIN_BUBBLE_RADIUS, MAX_BUBBLE_RADIUS)
-            center = Point(x=random.randint(radius, w - radius), y=random.randint(radius, h - radius))
+            center = Point(x=random.randint(radius, w - radius - 1), y=random.randint(radius, h - radius - 1))
             bubbles.append(Bubble(color, center, radius))
         return bubbles
 

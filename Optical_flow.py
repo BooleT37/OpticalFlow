@@ -41,15 +41,19 @@ class Bubble:
         return "(center: {}, radius: {})".format(self.center, self.radius)
 
 
+# noinspection PyPep8Naming
 class ShiftedArray:
     def __init__(self, array, shift):
         self.array = array
         self.shift = shift
 
     def __getitem__(self, indexes):
-        if indexes[0] + self.shift[0] >= self.array.shape[0] or indexes[1] + self.shift[1] >= self.array.shape[1]:
-            raise Exception("Getting array element out of bounds!")
-        return self.array[indexes[0] + self.shift[0], indexes[1] + self.shift[1]]
+        newIndex = (indexes[0] + self.shift[0], indexes[1] + self.shift[1])
+        if newIndex[0] >= self.array.shape[0]:
+            raise Exception("Getting array element out of bounds! {} vs {}".format(newIndex[0], self.array.shape[0]))
+        if newIndex[1] >= self.array.shape[1]:
+            raise Exception("Getting array element out of bounds! {} vs {}".format(newIndex[1], self.array.shape[1]))
+        return self.array[newIndex]
 
 
 # noinspection SpellCheckingInspection,PyPep8Naming
@@ -71,15 +75,27 @@ class App:
                 int(bubble.center.y + bubble.speed[1] + acc[1] / 2)
             )
             newSpeed = (bubble.speed[0] + acc[0], bubble.speed[1] + acc[1])
-            if (newCenter.x < flow.shape[1] - bubble.radius)\
-                    and (newCenter.y < flow.shape[0] - bubble.radius) \
-                    and (newCenter.x > bubble.radius) \
-                    and (newCenter.y > bubble.radius):
-                bubble.center = newCenter
-                bubble.speed = newSpeed
-                return bubble
-            else:
-                return None
+
+            width = int(flow.shape[1])
+            height = int(flow.shape[0])
+
+            # Bounces
+            if width <= newCenter.x + bubble.radius:  # right border
+                newCenter = Point(width * 2 - newCenter.x - bubble.radius * 2 - 1, newCenter.y)
+                newSpeed = (-newSpeed[0], newSpeed[1])
+            elif height <= newCenter.y + bubble.radius:  # bottom border
+                newCenter = Point(newCenter.x, height * 2 - newCenter.y - bubble.radius * 2 - 1)
+                newSpeed = (newSpeed[0], -newSpeed[1])
+            elif newCenter.x <= bubble.radius:  # left border
+                newCenter = Point(bubble.radius * 2 - newCenter.x, newCenter.y)
+                newSpeed = (-newSpeed[0], newSpeed[1])
+            elif newCenter.y <= bubble.radius:  # top border
+                newCenter = Point(newCenter.x, bubble.radius * 2 - newCenter.y)
+                newSpeed = (newSpeed[0], -newSpeed[1])
+
+            bubble.center = newCenter
+            bubble.speed = newSpeed
+            return bubble
 
         bubbles = self.generateRandomBubbles(prev.shape)
         self.drawBubbles(prev, bubbles)
@@ -115,7 +131,7 @@ class App:
         for i in range(0, n - 1):
             color = Color(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
             radius = random.randint(MIN_BUBBLE_RADIUS, MAX_BUBBLE_RADIUS)
-            center = Point(x=random.randint(radius, w - radius), y=random.randint(radius, h - radius))
+            center = Point(x=random.randint(radius, w - radius - 1), y=random.randint(radius, h - radius - 1))
             bubbles.append(Bubble(color, center, radius))
         return bubbles
 

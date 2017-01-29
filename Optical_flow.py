@@ -34,6 +34,8 @@ class ShiftedArray:
         self.shift = shift
 
     def __getitem__(self, indexes):
+        if indexes[0] + self.shift[0] > self.array.shape[0] or indexes[1] + self.shift[1] > self.array.shape[1]:
+            raise Exception("Getting array element out of bounds!")
         return self.array[indexes[0] + self.shift[0], indexes[1] + self.shift[1]]
 
 
@@ -65,7 +67,7 @@ class App:
                 # try to show initial img with filled circles
                 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                 flow = cv2.calcOpticalFlowFarneback(prevgray, gray, 0.5, 3, 15, 3, 5, 1.2, 0)
-                bubbles = list(map(lambda b: shiftBubble(b, flow), bubbles))
+                bubbles = list(filter(lambda b: b is not None, (map(lambda b: shiftBubble(b, flow), bubbles))))
                 self.drawBubbles(prev, bubbles)
                 prevgray = gray
                 cv2.imshow('flow', self.drawFlow(gray, flow))
@@ -109,7 +111,7 @@ class App:
     @staticmethod
     def getVectorForBubble(bubble, flow):
         step = 10
-        flow = ShiftedArray(flow, (bubble.center.x, bubble.center.y))
+        flow = ShiftedArray(flow, (bubble.center.y, bubble.center.x))
 
         def addVector(vector1, vector2):
             return vector1[0] + vector2[0], vector1[1] + vector2[1]
@@ -124,7 +126,7 @@ class App:
                 nextY = y + step
                 if x ** 2 + nextY ** 2 <= radiusSquare:
                     vector = processRow(x, nextY, radiusSquare, vector)
-            return vector
+            return int(vector[0]), int(vector[1])
 
         return processRow(-bubble.radius, 0, bubble.radius ** 2, (0, 0))
 

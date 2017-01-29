@@ -3,9 +3,11 @@ import cv2
 import random
 import sys
 import argumentsParser
+import math
 
 MIN_BUBBLE_RADIUS = 20
 MAX_BUBBLE_RADIUS = 40
+BUBBLE_DENSITY = 0.1
 
 
 class Color:
@@ -28,10 +30,12 @@ class Point:
 
 
 class Bubble:
-    def __init__(self, color, center, radius):
+    def __init__(self, color, center, radius, speed=(0, 0)):
         self.color = color
         self.center = center
         self.radius = radius
+        self.speed = speed
+        self.mass = BUBBLE_DENSITY * math.pi * (radius ** 2)
 
     def __str__(self):
         return "(center: {}, radius: {})".format(self.center, self.radius)
@@ -43,7 +47,7 @@ class ShiftedArray:
         self.shift = shift
 
     def __getitem__(self, indexes):
-        if indexes[0] + self.shift[0] > self.array.shape[0] or indexes[1] + self.shift[1] > self.array.shape[1]:
+        if indexes[0] + self.shift[0] >= self.array.shape[0] or indexes[1] + self.shift[1] >= self.array.shape[1]:
             raise Exception("Getting array element out of bounds!")
         return self.array[indexes[0] + self.shift[0], indexes[1] + self.shift[1]]
 
@@ -58,17 +62,22 @@ class App:
             return
 
         def shiftBubble(bubble, flow):
-            slowRatio = 10
             vector = self.getVectorForBubble(bubble, flow)
-            vector = (int(vector[0] / slowRatio), int(vector[1] / slowRatio))
-            newCenter = Point(bubble.center.x + vector[0], bubble.center.y + vector[1])
+
+            acc = vector[0] / bubble.mass, vector[1] / bubble.mass
+
+            newCenter = Point(
+                int(bubble.center.x + bubble.speed[0] + acc[0] / 2),
+                int(bubble.center.y + bubble.speed[1] + acc[1] / 2)
+            )
+            newSpeed = (bubble.speed[0] + acc[0], bubble.speed[1] + acc[1])
             if (newCenter.x < flow.shape[1] - bubble.radius)\
                     and (newCenter.y < flow.shape[0] - bubble.radius) \
                     and (newCenter.x > bubble.radius) \
                     and (newCenter.y > bubble.radius):
-                newBubble = Bubble(bubble.color, newCenter, bubble.radius)
-                # print ("{} -> {}".format(bubble.center, newBubble.center))
-                return newBubble
+                bubble.center = newCenter
+                bubble.speed = newSpeed
+                return bubble
             else:
                 return None
 
